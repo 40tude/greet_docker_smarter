@@ -5,6 +5,15 @@
 # docker rmi $(docker images -q "greet*_img")
 -->
 
+# Intro
+
+- C'est juste pour faire des tests avec Jenkins
+- Je veux lancer les test à chaque fois quej efais un push
+- Jenkins tourne en local dans une image
+
+# Setup
+
+Je fais une copie d'un autre répertoire où j'avais fais des tests de tests dansdes images Docker et où j'avais passé pas mal de temps à minimiser les fichiers requirements, Dockerfile... à maintenir. Si besoin lire ce [README.md](https://github.com/40tude/fraud_detection_2/blob/main/99_tooling/20_testing/README.md)
 
 Je fais une copie de `C:\Users\phili\OneDrive\Documents\Programmation\fraud_detection_2\99_tooling\20_testing\05_greet_docker_smarter`
 
@@ -18,7 +27,7 @@ code .
 
 J'ajoute un .gitignore
 
-Je fais le mesage dans./assets et je supprime ./img (sera recrée si besoin)
+Je fais le menage dans ``./assets`` et je supprime ``./img`` (sera recrée si besoin)
 
 <p align="center">
 <img src="./assets/img00.png" alt="drawing" width="400"/>
@@ -40,7 +49,7 @@ Tout fonctionne
 
 Je quitte VSCode
 
-Je switch en environnement `testing_no_docker`
+Je switch en environnement `testing_no_docker` (où pytest est dispo)
 
 code .
 
@@ -57,13 +66,10 @@ Tout fonctionne
 
 Je quitte VSCode
 
-Je switch en environnement `base`
+Je switch de nouveau en environnement `base`
 
 code .
 
+Je fais un commit du projet sur github
 
-
-
-
-
-Je fais un commit sur github
+# 
