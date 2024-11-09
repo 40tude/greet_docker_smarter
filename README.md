@@ -82,66 +82,47 @@ code .
 Je fais un commit du projet sur github
 
 
+# Vérification avant Jenkins 
 
-# Préparations pour Jenkins 
-
-Supprimer container et images
+Supprimer si besoin les containers et images utilisés avec "greet" préalablement 
 
 ```powershell
 docker rm -f $(docker ps -aq)
 docker rmi $(docker images -q "greet_img*")
 ```
 
-
-## Modifier
-
-La section greet-test du ``docker-compose.yml``
-    * Dans ``environment:``, ajouter ``PYTHONPATH``
-    * Dans `volumes:`, ajouter `./test-reports:/app/test-reports`
-    * Dans ``command:`` ajouter l'option de génération de rapport xml et html
-
-```dockerfile
-greet_test:
-      image: greet_img_test
-      build: 
-        context: .
-        dockerfile: docker/Dockerfile
-        args:
-          REQUIREMENTS_4TESTS: requirements_4tests.txt
-      container_name: greet_test
-      environment:
-        - PASSWORD=${PASSWORD}
-        - PYTHONPATH=/app
-      volumes:
-        - ./app:/home/app
-        - ./img:/home/img
-        - ./test-reports:/app/test-reports
-      working_dir: /home/app
-      command: pytest --junitxml=/app/test-reports/pytest-report.xml --html=/app/test-reports/pytest-report.html
+Lancer Jenkins
+```powershell
+cd C:\Users\phili\OneDrive\Documents\Programmation\Formations_JEDHA\04_Data_Science_Lead2_oct_2024\07_MLOps\02_CICD\sample-jenkins-server
+docker-compose up
 ```
+Aller sur http://localhost:8080/
 
-Modifier le fichier `docker/requirements_4test.txt` pour y ajouter `pytest-html`
 
-```
-# requirements_4test.txt
+## Lancer l'application est les test dans des images
 
-pytest
-pytest-html
-```
+Ouvrir un terminal à la racine du projet
 
 ```powershell
 ./run_app.ps1
 ./test_app.ps1
 ```
-Tout fonctionne. Un rapport est généré en 2 versions dans ``./test_reports``
+Tout fonctionne
+* Une image est générée dans ./img
+* Un rapport est généré en 2 versions dans ``./test_reports``
 
 
-Pour pouvoir visualiser le rapport, j'ouvre un terminal en dohors de VSCode
+Pour le rapport 
+1. J'utilise Docker desktop
+1. J'ouvre ./test-reports/pytest-report.htm avec un browser
 
-```powershell
-conda activate testing_no_docker
-conda install pytest-html -c conda-forge -y
-cd C:\Users\phili\OneDrive\Documents\Tmp\greet_docker_smarter\test-reports\
+<p align="center">
+<img src="./assets/img03.png" alt="drawing" width="800"/>
+<p>
 
 
-```
+<p align="center">
+<img src="./assets/img04.png" alt="drawing" width="800"/>
+<p>
+
+
