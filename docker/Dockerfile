@@ -1,16 +1,11 @@
 # Dockerfile
 
-# remove all containers
-# docker rm -f $(docker ps -aq)
-# remove image according the pattern 
-# docker rmi $(docker images -q "greet*_img")
-
 FROM python:3.12-slim
 ARG REQUIREMENTS_4TESTS
 
 # defines the current working directory for all subsequent instructions in the 
 # Dockerfile, as well as for the execution of commands in the resulting container
-WORKDIR /home/app
+WORKDIR /home
 
 RUN apt-get update
 
@@ -28,6 +23,5 @@ RUN if [ -n "${REQUIREMENTS_4TESTS}" ]; then \
         echo "No additional requirements specified."; \
     fi
 
-COPY app/ .
-
-
+COPY app/ ./app
+COPY tests/ ./tests

@@ -1,15 +1,15 @@
 <!-- 
 # remove all containers
-# docker rm -f $(docker ps -aq)
+docker rm -f $(docker ps -aq)
 # remove image according the pattern 
-# docker rmi $(docker images -q "greet*_img")
+docker rmi $(docker images -q "greet_img*")
 -->
 
 # Intro
 
 - C'est juste pour faire des tests avec Jenkins
-- Je veux lancer les test à chaque fois quej efais un push
-- Jenkins tourne en local dans une image
+- Je veux lancer les test à chaque fois que je fais un push
+- Jenkins tourne en local dans une image Docker
 
 # Setup
 
@@ -51,7 +51,12 @@ Je quitte VSCode
 
 Je switch en environnement `testing_no_docker` (où pytest est dispo)
 
+```powershell
+conda activate testing_no_docker
 code .
+```
+
+J'ouvre un terminal à la racine du projet
 
 ```powershell
 pytest
@@ -68,8 +73,75 @@ Je quitte VSCode
 
 Je switch de nouveau en environnement `base`
 
+
+```powershell
+conda deactivate
 code .
+```
 
 Je fais un commit du projet sur github
 
-# 
+
+
+# Préparations pour Jenkins 
+
+Supprimer container et images
+
+```powershell
+docker rm -f $(docker ps -aq)
+docker rmi $(docker images -q "greet_img*")
+```
+
+
+## Modifier
+
+La section greet-test du ``docker-compose.yml``
+    * Dans ``environment:``, ajouter ``PYTHONPATH``
+    * Dans `volumes:`, ajouter `./test-reports:/app/test-reports`
+    * Dans ``command:`` ajouter l'option de génération de rapport xml et html
+
+```dockerfile
+greet_test:
+      image: greet_img_test
+      build: 
+        context: .
+        dockerfile: docker/Dockerfile
+        args:
+          REQUIREMENTS_4TESTS: requirements_4tests.txt
+      container_name: greet_test
+      environment:
+        - PASSWORD=${PASSWORD}
+        - PYTHONPATH=/app
+      volumes:
+        - ./app:/home/app
+        - ./img:/home/img
+        - ./test-reports:/app/test-reports
+      working_dir: /home/app
+      command: pytest --junitxml=/app/test-reports/pytest-report.xml --html=/app/test-reports/pytest-report.html
+```
+
+Modifier le fichier `docker/requirements_4test.txt` pour y ajouter `pytest-html`
+
+```
+# requirements_4test.txt
+
+pytest
+pytest-html
+```
+
+```powershell
+./run_app.ps1
+./test_app.ps1
+```
+Tout fonctionne. Un rapport est généré en 2 versions dans ``./test_reports``
+
+
+Pour pouvoir visualiser le rapport, j'ouvre un terminal en dohors de VSCode
+
+```powershell
+conda activate testing_no_docker
+conda install pytest-html -c conda-forge -y
+cd C:\Users\phili\OneDrive\Documents\Tmp\greet_docker_smarter\test-reports\
+
+
+```
