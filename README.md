@@ -126,3 +126,7 @@ Pour le rapport
 <p>
 
 
+# Jenkins
+New job
+pipeline
+Un vrai clickodrome...
