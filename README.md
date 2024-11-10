@@ -438,3 +438,125 @@ docker-compose --version
 <p>
 
 * Il faut trouver un moyen de passer le ``.env``, après le téléchargement de GitHub mais avant le ``docker-compose --env-file ./app/.env up greet_test -d``
+
+
+<!-- ###################################################################### -->
+# Relancer les test
+
+## Test quand .env n'est PAS dans .gitignore
+* Ca passe
+* Je ne comprends pas les sorties
+
+<p align="center">
+<img src="./assets/img14.png" alt="drawing" width="800"/>
+<p>
+
+* A priori le rapport a été généré correctement
+
+``` batch
+docker exec -it jenkins-blueocean /bin/bash
+cd /var/jenkins_home/workspace/Run_Tests
+date
+ls -al
+```
+
+
+<p align="center">
+<img src="./assets/img15.png" alt="drawing" width="800"/>
+<p>
+
+
+<!-- ###################################################################### -->
+<!-- ###################################################################### -->
+# Passer par un pipeline, un Jenkinsfile et ???
+
+
+
+<!-- ###################################################################### -->
+## Test minimal (.env encore sur GitHub)
+
+* Créer un projet `run_tests`
+* De type pipeline
+* Dans build trigger choisir Poll SCM, Schedule = `H/5 * * * *`
+* Dans Pipeline/Definition/Pipeline Script copier le code ci-dessous :
+
+```groovy
+pipeline {
+    agent any
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/40tude/greet_docker_smarter'
+            }
+        }
+        
+        stage('Test') {
+            steps {
+                sh 'docker-compose --env-file ./app/.env up greet_test -d'
+            }
+        }
+    }
+}
+```
+* Save
+* Build Now
+* Aller voir le contenu de la console
+    * Faut cliquer d'abor du ``#2`` en bas dans ``Build History``
+
+
+<p align="center">
+<img src="./assets/img16.png" alt="drawing" width="800"/>
+<p>
+
+* Ouvrir un terminal, se brancher sur Jenkins
+    * Attnetion ici c'est ``run_tests`` (vs ``Run_Tests`` au coup d'avant)
+
+``` batch
+docker exec -it jenkins-blueocean /bin/bash
+cd /var/jenkins_home/workspace/run_tests
+date
+ls -al
+```
+
+<p align="center">
+<img src="./assets/img17.png" alt="drawing" width="800"/>
+<p>
+
+
+
+<!-- ###################################################################### -->
+## Test minimal (.env plus sur GitHub)
+
+* Normalement ça doit planter
+* ajouter ``.env`` dans ``.gitignore``
+* Faire un push sur GitHub
+* Mettre à jour le script groovy
+    * On a plus le `--env-file ./app/.env` sur la ligne `docker-compose`
+
+```groovy
+pipeline {
+    agent any
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/40tude/greet_docker_smarter'
+            }
+        }
+        
+        stage('Test') {
+            steps {
+                sh 'docker-compose up greet_test -d'
+            }
+        }
+    }
+}
+```
+* Save
+* Build Now
+* Aller voir le contenu de la console
+    * Faut cliquer d'abor du ``#2`` en bas dans ``Build History``
+
+
+
+
+
