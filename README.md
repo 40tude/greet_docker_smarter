@@ -206,6 +206,213 @@ Attendre 3H puis aller sur http://localhost:8080/
 <p>
 
 
+Create a job
+
+<p align="center">
+<img src="./assets/img07.png" alt="drawing" width="800"/>
+<p>
+
+
+Freestyle project
+
+<p align="center">
+<img src="./assets/img08.png" alt="drawing" width="800"/>
+<p>
+
+
+Select Source Code Management
+
+<p align="center">
+<img src="./assets/img09.png" alt="drawing" width="800"/>
+<p>
+
+
+Build Triggers
+
+<p align="center">
+<img src="./assets/img10.png" alt="drawing" width="800"/>
+<p>
+
+
+Add a Build Step
+
+* Copy the line from test_app.ps1 
+
+``` batch
+docker-compose --env-file ./app/.env up greet_test -d
+```
+
+<p align="center">
+<img src="./assets/img11.png" alt="drawing" width="800"/>
+<p>
+
+* Save 
+* Build Now
+* Et là ça part en vrille...
+
+
+
+
+
+<!-- ###################################################################### -->
+<!-- ###################################################################### -->
+# docker-compose est pas dispo sur l'image Jedha !!!!
+
+* docker-compose pas dispo sur l'image de Jedha
+* La preuve
+
+``` batch
+docker exec -it jenkins-blueocean /bin/bash
+```
+
+* Puis
+
+``` batch
+docker-compose --version
+``` 
+
+* Alors 
+
+``` batch
+jenkins@7aaa0d44c7af:/$ docker-compose --version
+bash: docker-compose: command not found
+``` 
+
+
+
+Aller dans `C:\Users\phili\OneDrive\Documents\Programmation\Formations_JEDHA\04_Data_Science_Lead2_oct_2024\07_MLOps\02_CICD\sample-jenkins-server`
+* Ouvrir Dockerfile
+* Sous la ligne
+
+``` batch
+RUN apt-get update && apt-get install -y docker-ce-cli
+``` 
+
+* Rajouter la ligne 
+
+``` batch
+RUN curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep -Po '"tag_name": "\K.*?(?=")')/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose \
+    && chmod +x /usr/local/bin/docker-compose
+``` 
+
+```dockerfile
+# Dockerfile
+FROM jenkins/jenkins:2.462.1-jdk17
+USER root
+RUN apt-get update && apt-get install -y lsb-release
+RUN curl -fsSLo /usr/share/keyrings/docker-archive-keyring.asc \
+  https://download.docker.com/linux/debian/gpg
+RUN echo "deb [arch=$(dpkg --print-architecture) \
+  signed-by=/usr/share/keyrings/docker-archive-keyring.asc] \
+  https://download.docker.com/linux/debian \
+  $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+RUN apt-get update && apt-get install -y docker-ce-cli
+RUN curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep -Po '"tag_name": "\K.*?(?=")')/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose \
+    && chmod +x /usr/local/bin/docker-compose
+USER jenkins
+RUN jenkins-plugin-cli --plugins "blueocean docker-workflow"
+``` 
+
+
+
+
+
+* Modifier docker-compose.yml car :
+    * pas de build
+    * pas de nom
+
+```yaml
+# docker-compose.yml
+services:
+  jenkins-docker:
+    image: docker:dind
+    container_name: jenkins-docker
+    privileged: true
+    networks:
+      jenkins:
+        aliases:
+          - docker
+    environment:
+      DOCKER_TLS_CERTDIR: "/certs"
+    volumes:
+      - jenkins-docker-certs:/certs/client
+      - jenkins-data:/var/jenkins_home
+    ports:
+      - "2376:2376"
+    command: --storage-driver overlay2
+    restart: always
+
+  jenkins-blueocean:
+    build: .                            # Construire à partir du Dockerfile présent dans le répertoire courant
+    image: jedha/sample-jenkins-server  # donner un nom
+    container_name: jenkins-blueocean
+    networks:
+      - jenkins
+    environment:
+      DOCKER_HOST: "tcp://docker:2376"
+      DOCKER_CERT_PATH: "/certs/client"
+      DOCKER_TLS_VERIFY: "1"
+    volumes:
+      - jenkins-data:/var/jenkins_home
+      - jenkins-docker-certs:/certs/client:ro
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    restart: on-failure
+
+networks:
+  jenkins:
+
+volumes:
+  jenkins-docker-certs:
+  jenkins-data:
+
+```
+
+
+
+* Reconstruire l'image
+
+``` batch
+docker-compose build
+``` 
+
+* Relancer le serveur Jenkins
+
+``` batch
+docker-compose up -d
+``` 
+
+<!-- ###################################################################### -->
+## Verifier que docker-compose est bien installé sur le serveur Jenkins 
+
+
+
+``` batch
+docker exec -it jenkins-blueocean /bin/bash
+```
+
+* Puis
+
+``` batch
+docker-compose --version
+``` 
+
+* Alors 
+
+
+<p align="center">
+<img src="./assets/img12.png" alt="drawing" width="800"/>
+<p>
+
+
+
+
+
+
+
+
+
 
 
 
@@ -214,22 +421,20 @@ Attendre 3H puis aller sur http://localhost:8080/
 
 
 <!-- ###################################################################### -->
-## Lancer l'application est les test dans des images
-
-
-
-
-
-
-
-
-
-
-
-
 <!-- ###################################################################### -->
-<!-- ###################################################################### -->
-# Jenkins
-New job
-pipeline
-Un vrai clickodrome...
+# Relancer les test
+
+* Aller sur `http://localhost:8080/`
+* Se connecter
+* Choisir ``Run_Tests``
+* Build Now
+* Et là ça marche toujours pas
+    * En fait à l'execution il ne trouve pas le .env
+    * Forcément il n'est pas sur Github
+
+
+<p align="center">
+<img src="./assets/img13.png" alt="drawing" width="800"/>
+<p>
+
+* Il faut trouver un moyen de passer le ``.env``, après le téléchargement de GitHub mais avant le ``docker-compose --env-file ./app/.env up greet_test -d``
