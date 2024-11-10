@@ -501,7 +501,7 @@ pipeline {
 * Save
 * Build Now
 * Aller voir le contenu de la console
-    * Faut cliquer d'abor du ``#2`` en bas dans ``Build History``
+    * Faut cliquer d'abord sur le ``#2`` (par exemple) en bas dans ``Build History``
 
 
 <p align="center">
@@ -527,9 +527,10 @@ ls -al
 <!-- ###################################################################### -->
 ## Test minimal (.env plus sur GitHub)
 
-* Normalement ça doit planter
+* Normalement on doit avoir un souci avec PASSWORD
 * ajouter ``.env`` dans ``.gitignore``
-* Faire un push sur GitHub
+* Sauver tout et faire un push sur GitHub
+* Faut peut être aller faire un tour sur GitHub et, si besaoin, supprimer le ``./app/.env`` à la main
 * Mettre à jour le script groovy
     * On a plus le `--env-file ./app/.env` sur la ligne `docker-compose`
 
@@ -554,7 +555,87 @@ pipeline {
 * Save
 * Build Now
 * Aller voir le contenu de la console
-    * Faut cliquer d'abor du ``#2`` en bas dans ``Build History``
+    * Faut cliquer d'abord sur le ``#N`` en bas dans ``Build History``
+* Ici on voit bien dans les log que PASSWORD n'est pas défini
+
+<p align="center">
+<img src="./assets/img18.png" alt="drawing" width="800"/>
+<p>
+
+
+
+
+
+<!-- ###################################################################### -->
+## Comment passer le .env ?
+
+* On va commencer par passer uniquement la variable PASSWORD
+* On utilise les Jenkins credentials
+
+Manage Jenkins/Credentials
+
+<p align="center">
+<img src="./assets/img19.png" alt="drawing" width="800"/>
+<p>
+
+
+Credential/System
+
+<p align="center">
+<img src="./assets/img20.png" alt="drawing" width="800"/>
+<p>
+
+
+Global Credentials
+
+<p align="center">
+<img src="./assets/img21.png" alt="drawing" width="800"/>
+<p>
+
+Add Credential
+
+<p align="center">
+<img src="./assets/img22.png" alt="drawing" width="800"/>
+<p>
+
+Create
+
+Modifier le script
+
+```groovy
+pipeline {
+    agent any
+    environment { PASSWORD = credentials('PASSWORD') }
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/40tude/greet_docker_smarter'
+            }
+        }
+        
+        stage('Test') {
+            steps {
+                sh 'docker-compose up greet_test -d'
+            }
+        }
+    }
+}
+```
+
+
+
+Pas de problème de varaible d'environnement PASSWORD non définie 
+
+<p align="center">
+<img src="./assets/img23.png" alt="drawing" width="800"/>
+<p>
+
+Le rapport a bien été généré
+
+<p align="center">
+<img src="./assets/img24.png" alt="drawing" width="800"/>
+<p>
+
 
 
 
