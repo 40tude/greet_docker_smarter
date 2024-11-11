@@ -749,6 +749,17 @@ Le rapport a bien été généré
     * Faut récupérer les 2 fichiers et un répertoire `assets`
 
 
+### L'exécution automatique fonctionne 
+Je fais un 
+<p align="center">
+<img src="./assets/img28.png" alt="drawing" width="800"/>
+<p>
+
+<p align="center">
+<img src="./assets/img29.png" alt="drawing" width="800"/>
+<p>
+
+
 
 
 
