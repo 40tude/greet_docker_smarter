@@ -622,9 +622,11 @@ pipeline {
 }
 ```
 
-
-
-Pas de problème de varaible d'environnement PASSWORD non définie 
+* Save
+* Build Now
+* Aller voir le contenu de la console
+    * Faut cliquer d'abord sur le ``#N`` en bas dans ``Build History``
+Pas de problème de variable d'environnement PASSWORD non définie 
 
 <p align="center">
 <img src="./assets/img23.png" alt="drawing" width="800"/>
@@ -636,6 +638,115 @@ Le rapport a bien été généré
 <img src="./assets/img24.png" alt="drawing" width="800"/>
 <p>
 
+
+
+<!-- ###################################################################### -->
+## Création d'un fichier .env via le script
+
+* Supprimer le précédent crential
+
+<p align="center">
+<img src="./assets/img25.png" alt="drawing" width="800"/>
+<p>
+
+* **ATTENTION DANGER**
+    * Ajouter ``Jenkinsfile`` à ``.gitignore``
+    * Je suis obligé de faire ça car en fait les scripts que je copie/colle dans ce ``README.md`` provienne de ce fichier
+    * Pour l'instant il n'y a rien de critique mais demains on aura des choses plus sensibles 
+
+Modifier le script
+1. Voir comment on construit à la volée le fichier ./app/env
+    * Oui il faudra écrire ici les mots de passe en clair (on le faisait déjà dans ``secrets.ps1`` et ``.env``)
+1. Bien voir aussi qu'on remet l'option `--env-file ./app/.env` sur la ligne ``docker-compose``
+1. Noter aussi qu'on a plus la ligne `environment { PASSWORD = credentials('PASSWORD') }`
+
+```groovy
+pipeline {
+    agent any
+    stages {
+        stage('Generate .env') {
+            steps {
+                script {
+                    // Créer .env dans le répertoire ./app
+                    writeFile file: 'app/.env', text: """
+                    PASSWORD=Zoubida_For_Ever
+                    EXAMPLE_VAR2="Avec espaces"
+                    """
+                }
+            }
+        }
+
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/40tude/greet_docker_smarter'
+            }
+        }
+        
+        stage('Test') {
+            steps {
+                sh 'docker-compose --env-file ./app/.env up greet_test -d'
+            }
+        }
+    }
+}
+```
+* Save
+* Build Now
+* Aller voir le contenu de la console
+    * Faut cliquer d'abord sur le ``#N`` en bas dans ``Build History``
+
+*Pas de problème de variable d'environnement PASSWORD non définie 
+
+<p align="center">
+<img src="./assets/img26.png" alt="drawing" width="800"/>
+<p>
+
+Le rapport a bien été généré
+
+<p align="center">
+<img src="./assets/img27.png" alt="drawing" width="800"/>
+<p>
+
+
+<!-- ###################################################################### -->
+<!-- ###################################################################### -->
+# Conclusion partielle
+
+
+<!-- ###################################################################### -->
+## Si on fait un point rapide...
+* On a un projet
+* Qui tourne en local dans une image docker lancée par docker-compose (``./run_app.ps1``)
+* On peut lancer une serie de tests qui se déroulent dans une image docker lancée par docker-compose (``./test_app.ps1``)
+* À partir de maintenant
+    * Toute les 5 minutes le repo Github est surveillé
+    * Si il y a eu des chagements
+    * Le projet est rapatrié sur la machine Jenkins et la batteries de test s'y déroule
+        * Rest 1 ou 2 détails à fixer (voir plus bas)
+
+<!-- ###################################################################### -->
+## D'un point de vue pratique 
+
+* On peut supprimer ``./app/secrets.ps1``
+    * On le quand même garde dans ``.gitignore`` (on sait jamais) 
+* On ne garde plus que `./app/.env`
+    * Il est dans ``.gitignore``
+* Quand on est en local on utilise
+    * ``run_app.ps1``
+    * ``test_app.ps1``
+    * Ils utilisent ``./app/.env``
+* On ajoute ``Jenkinsfile`` à ``.gitignore``
+    * Sur Jenkins on fait des Pipeline (pas des Freestyle project)
+    * Dans le script on crée à la volée le ``./app/.env``
+
+
+
+<!-- ###################################################################### -->
+## C'est peut être un détail pour vous
+1. Tu te rappelle FG, 1980 ?
+1. Il faut être sûr que le script démarre bien toutes les 5 minutes si y a eu des changements dans le projet depuis le dernier run de tests
+1. Comment faire pour récupérer sur l'hôte Windows 11 le rapport de test qui est généré dans `:~/workspace/run_tests/test-reports$`
+    * Faut récupérer les 2 fichiers et un répertoire `assets`
 
 
 
