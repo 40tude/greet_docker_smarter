@@ -10,6 +10,23 @@ docker ps -a -q --filter "name=greet*" | ForEach-Object { docker rm $_ }
 docker image ls --format "{{.Repository}}:{{.ID}}" | Select-String "^greet" | ForEach-Object { $id = ($_ -replace '.*:', ''); docker rmi -f $id }
  -->
 
+
+
+<!-- 
+# Lancer Jenkins
+cd C:\Users\phili\OneDrive\Documents\Programmation\Formations_JEDHA\04_Data_Science_Lead2_oct_2024\07_MLOps\02_CICD\sample-jenkins-server
+docker-compose up
+
+-->
+
+<!-- 
+Se connecter à Jenkins
+docker exec -it jenkins-blueocean /bin/bash
+cd /var/jenkins_home/workspace/
+
+ -->
+
+
 <!-- 
 
 ```powershell
@@ -826,6 +843,169 @@ pipeline {
 
 
 ### Récuperer le rapport de test sur l'hôte 
+* On peut sauvegarder sur un S3, un NFS...
+* Pour les besoin de la démo je vais envoyer par mail le contenu du répertoire ``./test_reports`` dans un zip 
+
+#### Note
+* Je viens de changer ``test-reports`` en ``test_reports``
+* Cela impact uniquement ``docker-compose.yml`` dont la dernière ligne devient
+
+```yaml
+command: pytest --junitxml=/home/test_reports/pytest_report.xml --html=/home/test_reports/pytest_report.html
+```
+
+
+* Il faut installer mailx car il n'est pas sur l'image Jenkins
+
+
+<p align="center">
+<img src="./assets/img32.png" alt="drawing" width="600"/>
+<p>
+
+* Eteindre Jenkins
+* Modifier le Dockerfile
+    * Ci-dessous voir la ligne : `RUN apt-get update && apt-get install -y mailutils`
+
+```dockerfile
+# Dockerfile
+FROM jenkins/jenkins:2.462.1-jdk17
+USER root
+RUN apt-get update && apt-get install -y lsb-release
+RUN curl -fsSLo /usr/share/keyrings/docker-archive-keyring.asc \
+  https://download.docker.com/linux/debian/gpg
+RUN echo "deb [arch=$(dpkg --print-architecture) \
+  signed-by=/usr/share/keyrings/docker-archive-keyring.asc] \
+  https://download.docker.com/linux/debian \
+  $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+RUN apt-get update && apt-get install -y docker-ce-cli
+RUN curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep -Po '"tag_name": "\K.*?(?=")')/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose \
+    && chmod +x /usr/local/bin/docker-compose
+RUN apt-get update && apt-get install -y mailutils
+USER jenkins
+RUN jenkins-plugin-cli --plugins "blueocean docker-workflow"
+```
+
+
+* Reconstruire l'image
+
+``` batch
+docker-compose build
+``` 
+
+* Relancer le serveur Jenkins
+
+``` batch
+docker-compose up
+``` 
+* Se connecter depuis un autre terminal et verifier
+
+``` batch
+docker exec -it jenkins-blueocean /bin/bash
+``` 
+
+<p align="center">
+<img src="./assets/img33.png" alt="drawing" width="600"/>
+<p>
+
+* Se connecter à Jenkins et ``Configure`` le projet
+
+```groovy
+pipeline {
+    agent any
+    stages {
+        stage('Generate .env') {
+            steps {
+                script {
+                    // Créer .env dans le répertoire ./app
+                    writeFile file: 'app/.env', text: """
+                    PASSWORD=Zoubida_For_Ever
+                    #EXAMPLE_VAR2="Avec espaces"
+                    """
+                }
+            }
+        }
+
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/40tude/greet_docker_smarter'
+            }
+        }
+        
+        stage('Test') {
+            steps {
+                sh 'docker-compose up greet_test -d'
+            }
+        }
+
+        stage('Archive Reports') {
+            steps {
+                script {
+                    // create .zip
+                    sh '''
+                        REPORT_DIR="./test_reports"
+                        ARCHIVE_NAME="test_reports_$(date +'%Y-%m-%d').zip"
+
+                        if [ -d "$REPORT_DIR" ]; then
+                            zip -r "$ARCHIVE_NAME" "$REPORT_DIR"
+                        else
+                            echo "$REPORT_DIR does not exist."
+                            exit 1
+                        fi
+                    '''
+                }
+            }
+        }
+
+        stage('Send Email') {
+            steps {
+                script {
+                    // send e-mail with archive enclosed
+                    sh '''
+                        RECIPIENT="XXX.YYY@gmail.com"
+                        SUJET="Test report from Jenkins - $(date +'%Y-%m-%d')"
+                        CORPS="Hi,\\n\\nFind enclose the test reports.\\n\\nRegards,\\nJenkins"
+                        ARCHIVE_NAME="test_reports_$(date +'%Y-%m-%d').zip"
+
+                        # Send e-mail with mailx
+                        echo -e "$CORPS" | mailx -s "$SUJET" -a "$ARCHIVE_NAME" "$RECIPIENT"
+                    '''
+                }
+            }
+        }
+    }
+}
+```
+
+<p align="center">
+<img src="./assets/img34.png" alt="drawing" width="600"/>
+<p>
+
+
+* Save
+* Build Now
+* Aller voir le contenu de la console
+* Pas de problème de variable d'environnement ``PASSWORD`` non définie 
+
+
+* Le rapport a bien été généré
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -833,7 +1013,7 @@ pipeline {
 
 <!-- ###################################################################### -->
 # Questions ouvertes
-* J'ai l'impression que dans l'image Jenkins on peut accèder aux répertoires de l'image qu'on a lancé pour faires les tests. Par exemple j'accède à ``./run_tests/test-reports``
+* J'ai l'impression que dans l'image Jenkins on peut accèder aux répertoires de l'image qu'on a lancé pour faires les tests. Par exemple j'accède à ``./run_tests/test_reports``
 * Ce que je ne comprends pas trop c'est que si je vais dans `cd /var/jenkins_home/workspace/` on voit tous essais et tentatives lancées depuis quelques jours.
 
 <p align="center">

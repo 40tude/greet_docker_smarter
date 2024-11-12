@@ -31,6 +31,6 @@ services:
       volumes:
         - ./app:/home/app
         - ./img:/home/img
-        - ./test-reports:/home/test-reports
+        - ./test_reports:/home/test_reports
       working_dir: /home
-      command: pytest --junitxml=/home/test-reports/pytest-report.xml --html=/home/test-reports/pytest-report.html
+      command: pytest --junitxml=/home/test_reports/pytest_report.xml --html=/home/test_reports/pytest_report.html
