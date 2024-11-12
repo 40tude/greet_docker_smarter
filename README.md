@@ -809,7 +809,10 @@ pipeline {
     * Faut récupérer les 2 fichiers et un répertoire `assets`
 
 
-### L'exécution automatique fonctionne 
+
+
+<!-- ###################################################################### -->
+##L'exécution automatique fonctionne 
 
 * Je fais une copie d'écran, une modif dans le projet puis un push sur Github
 
@@ -842,7 +845,12 @@ pipeline {
 
 
 
-### Récuperer le rapport de test sur l'hôte 
+
+
+
+
+<!-- ###################################################################### -->
+## Récuperer le rapport de test sur l'hôte 
 * On peut sauvegarder sur un S3, un NFS...
 * Pour les besoin de la démo je vais envoyer par mail le contenu du répertoire ``./test_reports`` dans un zip 
 
@@ -855,16 +863,10 @@ command: pytest --junitxml=/home/test_reports/pytest_report.xml --html=/home/tes
 ```
 
 
-* Il faut installer mailx car il n'est pas sur l'image Jenkins
-
-
-<p align="center">
-<img src="./assets/img32.png" alt="drawing" width="600"/>
-<p>
-
-* Eteindre Jenkins
-* Modifier le Dockerfile
-    * Ci-dessous voir la ligne : `RUN apt-get update && apt-get install -y mailutils`
+* Il faut installer zip car il n'est pas sur l'image Jenkins
+* Il faut donc éteindre Jenkins
+* Puis modifier son Dockerfile 
+    * Ci-dessous voir la ligne : `RUN apt-get update && apt-get install -y zip`
 
 ```dockerfile
 # Dockerfile
@@ -880,7 +882,7 @@ RUN echo "deb [arch=$(dpkg --print-architecture) \
 RUN apt-get update && apt-get install -y docker-ce-cli
 RUN curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep -Po '"tag_name": "\K.*?(?=")')/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose \
     && chmod +x /usr/local/bin/docker-compose
-RUN apt-get update && apt-get install -y mailutils
+RUN apt-get update && apt-get install -y zip
 USER jenkins
 RUN jenkins-plugin-cli --plugins "blueocean docker-workflow"
 ```
@@ -907,10 +909,56 @@ docker exec -it jenkins-blueocean /bin/bash
 <img src="./assets/img33.png" alt="drawing" width="600"/>
 <p>
 
-* Se connecter à Jenkins et ``Configure`` le projet
+
+
+
+* Se connecter à Jenkins puis Dashboard/Manage Jenkins/System
+* **ATTENTION** là ca va être un peu pénible...
+
+Remplir ce champ
+
+<p align="center">
+<img src="./assets/img34.png" alt="drawing" width="400"/>
+<p>
+
+Puis celui-ci
+<p align="center">
+<img src="./assets/img35.png" alt="drawing" width="400"/>
+<p>
+
+Pour les credentials il faut cliquer sur ``Add`` puis remplir ce formulaire
+* Bien choisir Username with Password
+* Je ne sais plus mais j'ai rempli au minimum : mon Username et le mot de pass. Pas de Id etc.
+
+<p align="center">
+<img src="./assets/img36.png" alt="drawing" width="400"/>
+<p>
+
+Si besoin choisir HTML dans ce champ
+
+<p align="center">
+<img src="./assets/img365.png" alt="drawing" width="400"/>
+<p>
+
+Enfin tout en bas on recommence ou presque
+* Faut penser à faire des tests histoire c'être sûr que ça fonctionne et de ne passer à la suite que quand ça fonctionne
+
+<p align="center">
+<img src="./assets/img37.png" alt="drawing" width="400"/>
+<p>
+
+
+Maintenant il faut ``Configure`` le projet et dans le script Jenkins
+1. Une fois que les tests sont terminés et pas avant 
+    * J'ai perdu du temps là dessus...
+    * Voir qu'à la fin de la ligne `sh 'docker-compose --env-file ./app/.env up greet_test'` y a plus de `-d`
+1. Mettre dans un fichier ``.zip`` le contenu du répertoire `./test_reports`
+1. Envoyer le zip par mail 
+
+J'utilise ce Jenkinsfile :
 
 ```groovy
-pipeline {
+pipeline { 
     agent any
     stages {
         stage('Generate .env') {
@@ -919,7 +967,7 @@ pipeline {
                     // Créer .env dans le répertoire ./app
                     writeFile file: 'app/.env', text: """
                     PASSWORD=Zoubida_For_Ever
-                    #EXAMPLE_VAR2="Avec espaces"
+                    EXAMPLE_VAR2="Avec espaces"
                     """
                 }
             }
@@ -933,61 +981,97 @@ pipeline {
         
         stage('Test') {
             steps {
-                sh 'docker-compose up greet_test -d'
+                sh 'docker-compose --env-file ./app/.env up greet_test'
             }
         }
 
         stage('Archive Reports') {
             steps {
                 script {
-                    // create .zip
-                    sh '''
-                        REPORT_DIR="./test_reports"
-                        ARCHIVE_NAME="test_reports_$(date +'%Y-%m-%d').zip"
-
-                        if [ -d "$REPORT_DIR" ]; then
-                            zip -r "$ARCHIVE_NAME" "$REPORT_DIR"
+                    // Define variable outside the sh block so that they are available elsewhere (see the post section)
+                    env.REPORT_DIR = "./test_reports"
+                    env.ARCHIVE_NAME = "test_reports_${new Date().format('yyyy-MM-dd-HHmmss')}.zip"
+                    
+                    // Create .zip
+                    sh """
+                        if [ -d "${env.REPORT_DIR}" ]; then
+                            zip -r "${env.ARCHIVE_NAME}" "${env.REPORT_DIR}"
                         else
-                            echo "$REPORT_DIR does not exist."
+                            echo "${env.REPORT_DIR} does not exist."
                             exit 1
                         fi
-                    '''
+                    """
                 }
             }
         }
-
-        stage('Send Email') {
-            steps {
-                script {
-                    // send e-mail with archive enclosed
-                    sh '''
-                        RECIPIENT="XXX.YYY@gmail.com"
-                        SUJET="Test report from Jenkins - $(date +'%Y-%m-%d')"
-                        CORPS="Hi,\\n\\nFind enclose the test reports.\\n\\nRegards,\\nJenkins"
-                        ARCHIVE_NAME="test_reports_$(date +'%Y-%m-%d').zip"
-
-                        # Send e-mail with mailx
-                        echo -e "$CORPS" | mailx -s "$SUJET" -a "$ARCHIVE_NAME" "$RECIPIENT"
-                    '''
-                }
+    }
+    post {
+        success {
+            script {
+                echo "Success"
+                emailext(
+                    subject: "Jenkins build success: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: """
+                    <p>Success</p>
+                    <p>${env.JOB_NAME} #${env.BUILD_NUMBER}</p>
+                    """,
+                    to: 'xxxx.yyyy@gmail.com',
+                    attachmentsPattern: "${env.ARCHIVE_NAME}"
+                )
+            }
+        }
+        failure {
+            script {
+                echo "Failure"
+                emailext(
+                    subject: "Jenkins build failure: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: """
+                    <p>Failure</p>
+                    <p>${env.JOB_NAME} #${env.BUILD_NUMBER}</p>
+                    """,
+                    to: 'xxxx.yyyy@gmail.com',
+                    attachmentsPattern: "${env.ARCHIVE_NAME}"
+                )
             }
         }
     }
 }
 ```
 
+* Save
+* Build Now
+    * On démarre à 16H02
+
 <p align="center">
-<img src="./assets/img34.png" alt="drawing" width="600"/>
+<img src="./assets/img38.png" alt="drawing" width="400"/>
 <p>
 
 
-* Save
-* Build Now
-* Aller voir le contenu de la console
-* Pas de problème de variable d'environnement ``PASSWORD`` non définie 
+* On peut aller voir le contenu de la console
+    * Pas de problème de variable d'environnement ``PASSWORD`` non définie 
+    * On voit que le run #14 vient de se terminer par un ``SUCCESS``
+
+<p align="center">
+<img src="./assets/img39.png" alt="drawing" width="400"/>
+<p>
 
 
-* Le rapport a bien été généré
+* J'ai reçu un mail de `success` à 17H02
+    * Il y a toujours 1 heure de décalage entre l'image Docker et l'hôte Windows
+
+<p align="center">
+<img src="./assets/img40.png" alt="drawing" width="800"/>
+<p>
+
+* La piece jointe comprend bien le rapport du test de 16H02
+    * Les 9 tests on été déroulés comme d'habitude
+
+<p align="center">
+<img src="./assets/img41.png" alt="drawing" width="600"/>
+<p>
+
+* En tout cas, ça fonctionne
+
 
 
 

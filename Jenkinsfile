@@ -1,4 +1,4 @@
-pipeline {
+pipeline { 
     agent any
     stages {
         stage('Generate .env') {
@@ -7,7 +7,7 @@ pipeline {
                     // Créer .env dans le répertoire ./app
                     writeFile file: 'app/.env', text: """
                     PASSWORD=Zoubida_For_Ever
-                    #EXAMPLE_VAR2="Avec espaces"
+                    EXAMPLE_VAR2="Avec espaces"
                     """
                 }
             }
@@ -21,43 +21,58 @@ pipeline {
         
         stage('Test') {
             steps {
-                sh 'docker-compose up greet_test -d'
+                // sh 'docker-compose --env-file ./app/.env up greet_test -d'
+                sh 'docker-compose --env-file ./app/.env up greet_test'
             }
         }
 
         stage('Archive Reports') {
             steps {
                 script {
-                    // create .zip
-                    sh '''
-                        REPORT_DIR="./test_reports"
-                        ARCHIVE_NAME="test_reports_$(date +'%Y-%m-%d').zip"
-
-                        if [ -d "$REPORT_DIR" ]; then
-                            zip -r "$ARCHIVE_NAME" "$REPORT_DIR"
+                    // Définir les variables en dehors du bloc sh pour les rendre disponibles dans la section post
+                    env.REPORT_DIR = "./test_reports"
+                    env.ARCHIVE_NAME = "test_reports_${new Date().format('yyyy-MM-dd-HHmmss')}.zip"
+                    
+                    // Créer l'archive .zip
+                    sh """
+                        if [ -d "${env.REPORT_DIR}" ]; then
+                            zip -r "${env.ARCHIVE_NAME}" "${env.REPORT_DIR}"
                         else
-                            echo "$REPORT_DIR does not exist."
+                            echo "${env.REPORT_DIR} does not exist."
                             exit 1
                         fi
-                    '''
+                    """
                 }
             }
         }
-
-        stage('Send Email') {
-            steps {
-                script {
-                    // send e-mail with archive enclosed
-                    sh '''
-                        RECIPIENT="philippe.baucour@gmail.com"
-                        SUJET="Test report from Jenkins - $(date +'%Y-%m-%d')"
-                        CORPS="Hi,\\n\\nFind enclose the test reports.\\n\\nRegards,\\nJenkins"
-                        ARCHIVE_NAME="test_reports_$(date +'%Y-%m-%d').zip"
-
-                        # Send e-mail with mailx
-                        echo -e "$CORPS" | mailx -s "$SUJET" -a "$ARCHIVE_NAME" "$RECIPIENT"
-                    '''
-                }
+    }
+    post {
+        success {
+            script {
+                echo "Success"
+                emailext(
+                    subject: "Jenkins build success: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: """
+                    <p>Success</p>
+                    <p>${env.JOB_NAME} #${env.BUILD_NUMBER}</p>
+                    """,
+                    to: 'philippe.baucour@gmail.com',
+                    attachmentsPattern: "${env.ARCHIVE_NAME}"
+                )
+            }
+        }
+        failure {
+            script {
+                echo "Failure"
+                emailext(
+                    subject: "Jenkins build failure: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: """
+                    <p>Failure</p>
+                    <p>${env.JOB_NAME} #${env.BUILD_NUMBER}</p>
+                    """,
+                    to: 'philippe.baucour@gmail.com',
+                    attachmentsPattern: "${env.ARCHIVE_NAME}"
+                )
             }
         }
     }
